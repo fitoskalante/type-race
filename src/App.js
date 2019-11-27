@@ -4,6 +4,7 @@ import Clock from "./components/Clock";
 import Footer from "./components/Footer";
 import TextInput from "./components/TextInput";
 import TextDisplay from "./components/TextDisplay";
+// import { async } from "q";
 
 require("./sass/app.scss");
 require("./font-awesome/css/font-awesome.css");
@@ -16,21 +17,29 @@ class App extends React.Component {
       wpm: 0,
       index: 0,
       value: "",
-      token: "",
+      token: "22",
       error: false,
       errorCount: 0,
       timeElapsed: 0,
       lineView: false,
       startTime: null,
       completed: false,
-      excerpt: this._randomElement(this.props.excerpts)
+      excerpt: "",
+      excerptId: 0
     };
   }
 
   async componentDidMount() {
     this.intervals = [];
-    this.setupCurrentUser();
+    // this.setupCurrentUser();
+    this.getExcerpts();
   }
+
+  getExcerpts = async () => {
+    const response = await fetch("https://localhost:5000/excerpts");
+    const data = await response.json();
+    this._randomElement(data);
+  };
 
   setupCurrentUser = () => {
     const existingToken = sessionStorage.getItem("token");
@@ -54,10 +63,14 @@ class App extends React.Component {
     this.intervals.push(setInterval.apply(null, arguments));
   }
 
-  _randomElement = array => {
-    return this.props.excerpts[
-      Math.floor(Math.random() * this.props.excerpts.length)
-    ];
+  _randomElement = excerpts => {
+    const excerptIdx = Math.floor(Math.random() * excerpts.length);
+
+    this.setState({
+      excerpt: excerpts[excerptIdx]["body"],
+      excerptId: excerpts[excerptIdx]["id"]
+    });
+    console.log(this.state);
   };
 
   _handleInputChange = e => {
@@ -114,7 +127,8 @@ class App extends React.Component {
         lineView: false,
         startTime: null,
         completed: false,
-        excerpt: this._randomElement(this.props.excerpts)
+        excerpt: "",
+        excerptId: 0
       },
       () => this.intervals.map(clearInterval)
     );
@@ -137,10 +151,10 @@ class App extends React.Component {
   };
 
   postScore = async (wpm, elapsed) => {
-    const resp = await fetch("https://127.0.0.1:5000/scores", {
+    const resp = await fetch("https://localhost:5000/scores", {
       method: "POST",
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
         Authorization: `Token ${this.state.token}`
       },
       body: JSON.stringify({
@@ -161,7 +175,7 @@ class App extends React.Component {
     let wpm;
     if (this.state.completed) {
       wpm = (this.state.excerpt.split(" ").length / (elapsed / 1000)) * 60;
-      // this.postScore(wpm, elapsed);
+      this.postScore(wpm, elapsed);
     } else {
       let words = this.state.excerpt.slice(0, this.state.index).split(" ")
         .length;
@@ -195,22 +209,18 @@ class App extends React.Component {
           <span className="errors">{this.state.errorCount}</span>
         </div>
       </>
-    )
-  }
+    );
+  };
 
   renderSignin = () => {
     return (
-      <div classname="signin">
-          <h1>Please Sign In</h1>
-          <input 
-            autoFocus
-            placeholder="Email"
-          />
-          <input 
-          />
+      <div className="signin">
+        <h1>Please Sign In</h1>
+        <input autoFocus placeholder="Email" />
+        <input />
       </div>
-    )
-  }
+    );
+  };
 
   render() {
     return (
@@ -219,13 +229,16 @@ class App extends React.Component {
           <h1>Type Racing</h1>
           <i onClick={this._restartGame} className="fa fa-lg fa-refresh"></i>
           <i className="fa fa-lg fa-bars" onClick={this._changeView}></i>
-          {this.state.token && this.state.token.length > 3 ? (
+          {this.state.token && this.state.token.length > 1 ? (
             <div>Sign Out</div>
           ) : (
             <div> Sign In</div>
           )}
         </div>
-        {this.state.token && this.state.token.length > 3 ? this.renderGame() : this.renderSignin()} 
+        {/* {this.state.token && this.state.token.length > 1
+          ? this.renderGame()
+          : this.renderSignin()} */}
+        {this.renderGame()}
         <Footer />
       </>
     );
